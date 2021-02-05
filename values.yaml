@@ -1,0 +1,50 @@
+dags:
+  git:
+    url: https://github.com/godatadriven/airflow-aks-dags.git
+    repoHost: github.com
+
+    gitSync:
+      enabled: true
+      refreshTime: 10
+  initContainer:
+    syncSubPath: "/dags"
+airflow:
+  image:
+    repository: apache/airflow
+    tag: 1.10.14-python3.7
+    ## values: Always or IfNotPresent
+    pullPolicy: IfNotPresent
+    pullSecret: ""
+  config:
+    AIRFLOW__LOGGING__LOGGING_LEVEL: "DEBUG"
+    AIRFLOW__SECRETS__BACKEND: "airflow.contrib.secrets.azure_key_vault.AzureKeyVaultBackend"
+    AIRFLOW__SECRETS__BACKEND_KWARGS: '{"connections_prefix": "airflow-connections", "vault_url": "YOUR_VAULT_HERE" }'
+  extraEnv:
+    - name: AZURE_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: azure-sp-credentials
+          key: client-id
+    - name: AZURE_TENANT_ID
+      valueFrom:
+        secretKeyRef:
+          name: azure-sp-credentials
+          key: tenant-id
+    - name: AZURE_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: azure-sp-credentials
+          key: client-secret
+  extraVolumeMounts:
+    - mountPath: "/opt/airflow/logs"
+      name: "logsvolume"
+  extraVolumes:
+    - name: "logsvolume"
+      persistentVolumeClaim:
+        claimName: my-azurefile
+  extraPipPackages:
+    - "azure-mgmt-datafactory>=0.13.0"
+    - "azure-identity"
+    - "pytest==5.4.3"
+    # This version is important!
+    - "pymssql==2.1.4"
